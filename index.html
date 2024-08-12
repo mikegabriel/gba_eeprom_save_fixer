@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GBA EEPROM Save Fixer</title>
+</head>
+<body>
+    <h1>GBA EEPROM Save Fixer</h1>
+    <p>A tool to fix wrong byte order GBA EEPROM saves as created by some emulators.</p>
+    <p>Thanks to <a href="https://github.com/profi200">profi200</a> for their <a href="https://gist.github.com/profi200/e06794d7561ed552c518b4b0b2f5f2f6">Gist</a></p>
+    <hr />
+    <p>Select a save file with a .eep extension and press Fix Save File.</p>
+    <p>Note: If using <a href="https://github.com/profi200/open_agb_firm">open_agb_firm</a>, the resulting file must be placed in <i>/3ds/open_agb_firm/saves</i></p>
+    <input type="file" id="fileInput" accept=".eep">
+    <button onclick="processSaveFile()">Fix Save File</button>
+    <p id="status"></p>
+
+    <script>
+        function processSaveFile() {
+            const fileInput = document.getElementById("fileInput");
+            const statusElement = document.getElementById("status");
+
+            if (fileInput.files.length === 0) {
+                statusElement.textContent = "Please select a file.";
+                return;
+            }
+
+            const file = fileInput.files[0];
+            const reader = new FileReader();
+
+            reader.onload = function(e) {
+                const arrayBuffer = e.target.result;
+                const dataView = new DataView(arrayBuffer);
+                const fileSize = arrayBuffer.byteLength;
+
+                if (fileSize === 0 || fileSize < 32 || ((fileSize & (fileSize - 1)) !== 0)) {
+                    statusElement.textContent = "Broken save file or incorrect size!";
+                    return;
+                }
+
+                for (let i = 0; i < fileSize; i += 8) {
+                    const value = dataView.getBigUint64(i, false);
+                    dataView.setBigUint64(i, value, true);
+                }
+
+                const modifiedBlob = new Blob([arrayBuffer], {type: "application/octet-stream"});
+
+                const downloadLink = document.createElement("a");
+                downloadLink.href = URL.createObjectURL(modifiedBlob);
+                downloadLink.download = file.name.replace(".eep", ".sav");
+                downloadLink.textContent = "Download Fixed Save File";
+
+                statusElement.textContent = "Done. ";
+                statusElement.appendChild(downloadLink);
+            };
+
+            reader.onerror = function() {
+                statusElement.textContent = "Error reading file.";
+            };
+
+            reader.readAsArrayBuffer(file);
+        }
+    </script>
+</body>
+</html>
